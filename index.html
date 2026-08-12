@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Draft Buddy</title>
+<link rel="icon" href="assets/hmb-logo.png">
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --panel2: #1c2330; --line: #2d333b;
+    --text: #e6edf3; --dim: #8b949e; --accent: #f0a832; --accent2: #58a6ff;
+    --good: #3fb950; --warn: #d29922; --bad: #f85149;
+    --qb: #ef74a1; --rb: #56c9a8; --wr: #58a6ff; --te: #f0a832;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+
+  /* ---------- header ---------- */
+  header { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--line); flex: 0 0 auto; }
+  header img.logo { height: 34px; width: 34px; border-radius: 7px; }
+  header .brand { font-weight: 700; letter-spacing: .04em; font-size: 16px; }
+  header .brand small { color: var(--dim); font-weight: 400; display: block; font-size: 10px; letter-spacing: .12em; }
+  #conn { display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--dim); font-size: 12px; }
+  #conn .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); }
+  #conn.live .dot { background: var(--good); box-shadow: 0 0 6px var(--good); }
+  #conn .dot.ping { animation: ping .5s ease; }
+  @keyframes ping { 0% { transform: scale(1); } 40% { transform: scale(1.7); box-shadow: 0 0 12px var(--good); } 100% { transform: scale(1); } }
+  #conn.err .dot { background: var(--bad); animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: .3; } }
+  #seatChip { background: var(--panel2); border: 1px solid var(--line); border-radius: 14px; padding: 3px 12px; font-size: 12px; color: var(--accent); display: none; }
+  #btnDonate, #btnHome, #btnSettings { color: var(--dim); font-size: 18px; padding: 4px 8px; }
+  #btnDonate:hover, #btnHome:hover, #btnSettings:hover { color: var(--text); }
+
+  #banner { display: none; background: #4d2d10; color: #ffb96e; text-align: center; padding: 5px; font-size: 13px; flex: 0 0 auto; }
+  #banner.err { background: #4b1d1d; color: #ff9d97; }
+
+  main { flex: 1 1 auto; overflow: hidden; position: relative; }
+  .view { display: none; height: 100%; }
+  .view.active { display: flex; }
+
+  /* ---------- home ---------- */
+  #viewHome { flex-direction: column; align-items: center; justify-content: center; gap: 26px; }
+  #viewHome img { height: 110px; width: 110px; border-radius: 22px; box-shadow: 0 8px 40px rgba(240,168,50,.25); }
+  #viewHome h1 { font-size: 30px; letter-spacing: .05em; }
+  #viewHome h1 small { display: block; text-align: center; font-size: 12px; color: var(--dim); letter-spacing: .28em; margin-top: 4px; }
+  .homeBtns { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
+  .bigBtn { width: 250px; padding: 26px 20px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); text-align: center; transition: all .15s; }
+  .bigBtn:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .bigBtn .ico { font-size: 34px; display: block; margin-bottom: 8px; }
+  .bigBtn .t { font-size: 18px; font-weight: 600; }
+  .bigBtn .d { font-size: 12px; color: var(--dim); margin-top: 6px; }
+
+  /* ---------- attach (mock + room) ---------- */
+  #viewMock { flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+  .pulse { width: 64px; height: 64px; border-radius: 50%; border: 3px solid var(--accent); animation: pulse 1.6s infinite; display:flex; align-items:center; justify-content:center; font-size: 26px; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(240,168,50,.5);} 70% { box-shadow: 0 0 0 22px rgba(240,168,50,0);} 100% { box-shadow: 0 0 0 0 rgba(240,168,50,0);} }
+
+  /* ---------- draft view: control hub ---------- */
+  #viewDraft { flex-direction: column; }
+  #ticker { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--line); padding: 7px 16px; font-size: 13px; flex: 0 0 auto; transition: box-shadow .15s, border-color .15s; }
+  #ticker.myturn { border-bottom-color: var(--accent); box-shadow: inset 0 0 22px rgba(240,168,50,.18); }
+  #ticker .big { font-weight: 700; font-size: 15px; color: var(--accent); }
+  #ticker .chip { background: var(--panel2); border-radius: 12px; padding: 2px 11px; color: var(--dim); white-space: nowrap; }
+  #ticker .chip b { color: var(--text); }
+  #ticker .status { margin-left: auto; font-weight: 700; color: var(--accent); background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 3px 14px; white-space: nowrap; }
+  #ticker.myturn .status { border-color: var(--accent); box-shadow: 0 0 14px rgba(240,168,50,.35); }
+  #btnDraftBack { color: var(--dim); font-size: 16px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 8px; }
+  #btnDraftBack:hover { color: var(--text); border-color: var(--accent2); }
+
+  #hub { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(340px, 1fr); overflow: hidden; }
+  #warRoom { overflow-y: auto; padding: 16px 18px; }
+  #sidePanel { border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; overflow: hidden; }
+
+  .section-title { font-size: 11px; letter-spacing: .16em; color: var(--dim); text-transform: uppercase; margin: 14px 0 8px; }
+  .section-title:first-child { margin-top: 0; }
+
+  #sinceList { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding: 4px 2px 8px; scrollbar-width: thin; }
+  .taken { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; background: var(--panel2); border: 1px solid var(--line); border-radius: 20px; padding: 5px 14px 5px 6px; font-size: 13.5px; animation: chipIn .3s ease; }
+  @keyframes chipIn { from { transform: translateX(14px); opacity: 0; } }
+  .taken img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #000; }
+  .taken.hot { border-color: var(--bad); box-shadow: 0 0 10px rgba(248,81,73,.25); }
+  .posdot { width: 9px; height: 9px; border-radius: 50%; }
+
+  /* persistent run banner */
+  #runBanner { display: none; align-items: center; gap: 12px; background: linear-gradient(90deg, #3a1210, #241012); border: 1px solid var(--bad); border-radius: 12px; padding: 10px 16px; margin: 10px 0 4px; font-size: 14px; animation: chipIn .3s ease; }
+  #runBanner b { color: var(--bad); }
+  #runBanner .lockNow { background: var(--bad); color: #fff; border-radius: 8px; padding: 5px 16px; font-weight: 700; }
+  #runBanner .dismiss { margin-left: auto; color: var(--dim); font-size: 16px; }
+
+  /* position lock bar */
+  #lockBar { display: flex; gap: 8px; align-items: center; margin: 4px 0 10px; }
+  #lockBar .lockBtn { border: 1px solid var(--line); border-radius: 16px; padding: 4px 14px; font-size: 13px; color: var(--dim); display: flex; align-items: center; gap: 7px; transition: all .12s; }
+  #lockBar .lockBtn:hover { border-color: var(--accent2); color: var(--text); }
+  #lockBar .lockBtn.on { border-color: var(--accent); color: var(--accent); background: rgba(240,168,50,.1); }
+  #lockBar .cnt { font-size: 10.5px; font-weight: 800; border-radius: 9px; padding: 1px 7px; background: var(--panel2); }
+  #lockBar .cnt.ok { color: var(--good); } #lockBar .cnt.low { color: var(--warn); } #lockBar .cnt.dry { color: var(--bad); }
+  #bestBecause { font-size: 12.5px; color: var(--accent); margin: -4px 0 8px; display: none; }
+
+  /* rec cards */
+  #recArea { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .recCard { display: flex; flex-direction: column; align-items: center; text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 26px 12px 14px; position: relative; animation: cardIn .25s ease; min-width: 0; }
+  @keyframes cardIn { from { transform: translateY(8px); opacity: 0; } }
+  .survMeter { height: 6px; border-radius: 3px; background: var(--panel2); overflow: hidden; margin: 6px 0 2px; width: 100%; }
+  .survMeter i { display: block; height: 100%; border-radius: 3px; transition: width .4s; }
+  .survMeter + .survLbl { font-size: 10px; color: var(--dim); letter-spacing: .04em; }
+  .recCard.top { border-color: var(--accent); background: linear-gradient(160deg, rgba(240,168,50,.07), var(--panel) 55%); }
+  .recCard .face { width: 100%; }
+  .recCard .face img.head { width: 72px; height: 72px; border-radius: 12px; object-fit: cover; background: #0a0e14; }
+  .recCard .face .initials { width: 72px; height: 72px; margin: 0 auto; border-radius: 12px; background: var(--panel2); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; color: var(--dim); }
+  .recCard .face .teamrow { display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 5px; font-size: 11px; color: var(--dim); }
+  .recCard .face .teamrow img { width: 16px; height: 16px; }
+  .recCard .body { width: 100%; min-width: 0; margin-top: 8px; }
+  .recCard .nm { font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 7px; flex-wrap: wrap; }
+  .recCard .badge { font-size: 10px; padding: 2px 8px; border-radius: 9px; font-weight: 700; letter-spacing: .05em; }
+  .recCard .flags { display: flex; align-items: center; justify-content: center; gap: 7px; flex-wrap: wrap; font-size: 10.5px; margin-top: 2px; }
+  .recCard .stats { display: flex; justify-content: center; gap: 12px; margin: 8px 0; flex-wrap: wrap; }
+  .stat { text-align: center; }
+  .stat .v { font-size: 14px; font-weight: 700; }
+  .stat .l { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; }
+  .recCard .why { font-size: 12px; color: #d8e1ea; text-align: left; margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .recCard .branch { font-size: 11px; color: var(--dim); margin-top: 6px; font-style: italic; text-align: left; }
+  .recCard .acts { position: absolute; top: 8px; right: 10px; display: flex; gap: 6px; }
+  .recCard .acts button, .poolActs button { font-size: 14px; opacity: .5; }
+  .recCard .acts button:hover, .poolActs button:hover { opacity: 1; }
+  .rankTag { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #1a1206; font-size: 10px; font-weight: 800; letter-spacing: .1em; padding: 2px 10px; border-radius: 9px; white-space: nowrap; }
+  .recCard.alt .rankTag { background: var(--panel2); color: var(--dim); border: 1px solid var(--line); }
+  #demotions { color: var(--dim); font-size: 12px; margin-top: 2px; }
+
+  /* runs meter */
+  #runsMeter { display: flex; gap: 12px; }
+  .runBox { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+  .runBox .rp { font-size: 11px; color: var(--dim); display: flex; justify-content: space-between; }
+  .runBox .bar { height: 5px; border-radius: 3px; background: var(--panel2); margin-top: 6px; overflow: hidden; }
+  .runBox .bar i { display: block; height: 100%; border-radius: 3px; }
+
+  /* watchlist */
+  .watchRow { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; margin-bottom: 6px; font-size: 13px; }
+  .watchRow img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: #000; }
+  .survBar { flex: 0 0 90px; height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; }
+  .survBar i { display: block; height: 100%; }
+
+  /* ---------- side panel ---------- */
+  #sideTabs { display: flex; border-bottom: 1px solid var(--line); flex: 0 0 auto; }
+  #sideTabs button { flex: 1; padding: 9px 4px; font-size: 12.5px; color: var(--dim); border-bottom: 2px solid transparent; }
+  #sideTabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+  .sideBody { flex: 1 1 auto; overflow-y: auto; padding: 10px; display: none; }
+  .sideBody.on { display: block; }
+
+  #poolSearch { width: 100%; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 7px 10px; margin-bottom: 8px; }
+  #poolPosBar { display: flex; gap: 6px; margin-bottom: 8px; }
+  #poolPosBar button { border: 1px solid var(--line); border-radius: 12px; padding: 2px 12px; font-size: 12px; color: var(--dim); }
+  #poolPosBar button.on { color: var(--text); border-color: var(--accent2); }
+  table.pool { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.pool td { padding: 5px 4px; border-bottom: 1px solid #21262d; white-space: nowrap; }
+  table.pool tr:hover { background: var(--panel2); }
+  table.pool .nm { max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+  table.pool tr.avoided .nm { text-decoration: line-through; color: var(--dim); }
+  .tierPill { font-size: 10px; border-radius: 8px; padding: 1px 7px; background: var(--panel2); color: var(--dim); }
+
+  /* my team */
+  .slotRow { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-bottom: 1px solid #21262d; font-size: 13px; }
+  .slotRow .slotName { flex: 0 0 56px; font-size: 11px; color: var(--dim); letter-spacing: .06em; }
+  .slotRow.empty .fill { color: #444c56; font-style: italic; }
+  .slotRow img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background: #000; }
+
+  /* board — full-width bottom drawer */
+  #boardDrawer { flex: 0 0 auto; border-top: 1px solid var(--line); background: var(--panel); }
+  #boardToggle { width: 100%; display: flex; align-items: center; gap: 12px; padding: 7px 18px; font-size: 11px; letter-spacing: .14em; color: var(--dim); }
+  #boardToggle:hover { color: var(--text); }
+  #boardMeta { letter-spacing: .02em; color: var(--accent2); }
+  #boardArrow { margin-left: auto; transition: transform .2s; }
+  #boardDrawer.open #boardArrow { transform: rotate(180deg); }
+  #boardWrap { display: none; overflow-y: auto; max-height: 36vh; padding: 0 10px 10px; }
+  #boardDrawer.open #boardWrap { display: block; }
+  table.board { border-collapse: collapse; font-size: 10.5px; width: 100%; table-layout: fixed; }
+  table.board th { position: sticky; top: 0; background: var(--panel2); padding: 4px 4px; font-size: 10px; color: var(--dim); z-index: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  table.board th.rnd { width: 34px; }
+  table.board td { border: 1px solid #1b212a; padding: 2px 5px; height: 22px; overflow: hidden; }
+  table.board td .bp { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  table.board td.me { outline: 2px solid rgba(240,168,50,.55); outline-offset: -2px; }
+  table.board td .kb { color: var(--te); font-weight: 800; font-size: 9px; }
+  table.board td.onclock { background: rgba(88,166,255,.16); animation: clockPulse 1.6s infinite; }
+  @keyframes clockPulse { 50% { background: rgba(88,166,255,.3); } }
+  td.cQB { background: rgba(239,116,161,.13); } td.cRB { background: rgba(86,201,168,.12); }
+  td.cWR { background: rgba(88,166,255,.12); } td.cTE { background: rgba(240,168,50,.12); }
+
+  /* seat picker + settings modals */
+  .modalBg { position: fixed; inset: 0; background: rgba(0,0,0,.65); display: none; align-items: center; justify-content: center; z-index: 40; }
+  .modalBg.on { display: flex; }
+  .modal { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px 26px; min-width: 420px; max-width: 560px; }
+  .modal h2 { font-size: 17px; margin-bottom: 4px; }
+  .modal .hint { color: var(--dim); font-size: 12.5px; margin-bottom: 14px; }
+  #seatGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .seatBtn { border: 1px solid var(--line); border-radius: 10px; padding: 10px 6px; text-align: center; min-width: 0; }
+  .seatBtn .n { font-size: 16px; font-weight: 700; }
+  .seatBtn .who { font-size: 10.5px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .seatBtn:hover { border-color: var(--accent2); }
+  .seatBtn.sel { border-color: var(--accent); background: rgba(240,168,50,.12); }
+  .modal .row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .modal label { flex: 0 0 120px; color: var(--dim); font-size: 12.5px; }
+  .modal input { flex: 1; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 7px 10px; }
+  .modal .foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+  .primary { background: var(--accent); color: #1a1206; font-weight: 700; border-radius: 9px; padding: 8px 20px; }
+  .ghost { border: 1px solid var(--line); border-radius: 9px; padding: 8px 16px; color: var(--dim); }
+
+  /* donate modal */
+  .amtRow { display: flex; gap: 10px; margin: 4px 0 16px; }
+  .amtBtn { flex: 1; border: 1px solid var(--line); border-radius: 10px; padding: 10px 6px; text-align: center; font-size: 15px; font-weight: 700; }
+  .amtBtn:hover { border-color: var(--accent); color: var(--accent); background: rgba(240,168,50,.08); }
+  .qrCols { display: flex; gap: 18px; margin: 4px 0 4px; }
+  .qrWrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+  .qrWrap img { width: 100%; max-width: 200px; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); }
+  .qrWrap .qrCaption { font-size: 11.5px; color: var(--dim); text-align: center; }
+  .qrWrap .donateHandle { text-align: center; font-size: 12.5px; }
+  .qrWrap .donateHandle a { color: var(--accent2); }
+  @media (max-width: 560px) {
+    .qrCols { flex-direction: column; align-items: center; }
+  }
+
+  /* toasts */
+  #toasts { position: fixed; bottom: 18px; right: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
+  .toast { background: var(--panel2); border: 1px solid var(--accent); border-radius: 10px; padding: 10px 16px; font-size: 13px; box-shadow: 0 6px 22px rgba(0,0,0,.5); animation: rise .25s; }
+  @keyframes rise { from { transform: translateY(8px); opacity: 0; } }
+
+  /* responsive: squarer monitors get a tighter hub; narrow windows stack */
+  @media (max-width: 1400px) {
+    #hub { grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); }
+    #warRoom { padding: 12px 14px; }
+  }
+  @media (max-width: 1080px) {
+    #hub { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1.4fr) minmax(240px, 1fr); }
+    #sidePanel { border-left: none; border-top: 1px solid var(--line); }
+    #recArea { grid-template-columns: 1fr; }
+  }
+  @media (max-height: 800px) {
+    #viewHome img { height: 84px; width: 84px; }
+    #boardWrap { max-height: 30vh; }
+  }
+  .modal { max-width: min(560px, 94vw); min-width: min(420px, 94vw); }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: #2d333b; border-radius: 5px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3d444d; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  .pos-QB { color: var(--qb); } .bg-QB { background: var(--qb); }
+  .pos-RB { color: var(--rb); } .bg-RB { background: var(--rb); }
+  .pos-WR { color: var(--wr); } .bg-WR { background: var(--wr); }
+  .pos-TE { color: var(--te); } .bg-TE { background: var(--te); }
+
+  /* ---------- splash ---------- */
+  #splash { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; cursor: pointer; transition: opacity .35s ease; }
+  #splash.hide { opacity: 0; pointer-events: none; }
+  #splash img { height: 110px; width: 110px; border-radius: 22px; transform: scale(.6); opacity: 0; animation: splashZoom 1.1s cubic-bezier(.2,.8,.25,1) forwards; }
+  #splash .word { font-size: 24px; font-weight: 700; letter-spacing: .28em; opacity: 0; animation: splashWord .5s ease .55s forwards; }
+  @keyframes splashZoom {
+    0% { transform: scale(.6); opacity: 0; filter: drop-shadow(0 0 0 rgba(240,168,50,0)); }
+    55% { opacity: 1; }
+    100% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 28px rgba(240,168,50,.45)); }
+  }
+  @keyframes splashWord { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+<div id="splash"><img src="assets/hmb-logo.png" alt=""><div class="word">DRAFT BUDDY</div></div>
+<header>
+  <img class="logo" src="assets/hmb-logo.png" alt="Draft Buddy">
+  <div class="brand">DRAFT BUDDY</div>
+  <span id="seatChip"></span>
+  <div id="conn"><span class="dot"></span><span id="connTxt">idle</span></div>
+  <button id="btnDonate" title="Support Draft Buddy">🎁</button>
+  <button id="btnHome" title="Home">⌂</button>
+  <button id="btnSettings" title="Settings">⚙</button>
+</header>
+<div id="banner"></div>
+
+<main>
+  <!-- HOME -->
+  <section class="view active" id="viewHome">
+    <img src="assets/hmb-logo.png" alt="Draft Buddy">
+    <h1>DRAFT BUDDY<small>A HELPMEBIM WAR ROOM</small></h1>
+    <div class="homeBtns">
+      <button class="bigBtn" id="btnMock"><span class="ico">🏈</span><span class="t">Mock Draft</span><div class="d">Paste your Sleeper mock draft link and practice with a live co-pilot</div></button>
+      <button class="bigBtn" id="btnRoom"><span class="ico">🔴</span><span class="t">Draft Room</span><div class="d">Attach to your real league draft and ride shotgun</div></button>
+    </div>
+  </section>
+
+  <!-- ATTACH (mock + room share this view) -->
+  <section class="view" id="viewMock">
+    <div class="pulse">📡</div>
+    <h2 id="attachTitle">Attach a draft</h2>
+    <div id="attachHint" style="color:var(--dim);font-size:13px;max-width:560px;text-align:center"></div>
+    <div style="display:flex;gap:8px;width:min(520px, 92vw)">
+      <input id="mockIdInput" placeholder="Paste draft link or ID… e.g. sleeper.com/draft/nfl/1234…" style="flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 12px">
+      <button class="primary" id="mockIdGo">Attach</button>
+    </div>
+    <div id="attachStatus" style="color:var(--dim);font-size:12px;min-height:18px"></div>
+    <button class="ghost" id="btnMockBack">← back</button>
+  </section>
+
+  <!-- DRAFT HUB -->
+  <section class="view" id="viewDraft">
+    <div id="ticker">
+      <button id="btnDraftBack" title="Leave draft">←</button>
+      <span class="big" id="tkPick">—</span>
+      <span class="chip">on the clock: <b id="tkClock">—</b></span>
+      <span class="chip">you're up <b id="tkUntil">—</b></span>
+      <span class="chip" id="tkStatus">—</span>
+      <span class="status" id="turnChip">—</span>
+    </div>
+    <div id="hub">
+      <div id="warRoom">
+        <div class="section-title">Gone since your last turn</div>
+        <div id="sinceList"><span style="color:var(--dim);font-size:12px">nothing yet</span></div>
+        <div id="runBanner"></div>
+        <div class="section-title">The experts say</div>
+        <div id="lockBar">
+          <button class="lockBtn on" data-pos="">Engine pick</button>
+          <button class="lockBtn" data-pos="QB">QB</button>
+          <button class="lockBtn" data-pos="RB">RB</button>
+          <button class="lockBtn" data-pos="WR">WR</button>
+          <button class="lockBtn" data-pos="TE">TE</button>
+          <span style="color:var(--dim);font-size:11px;margin-left:6px">lock a position to see top-3 there</span>
+        </div>
+        <div id="bestBecause"></div>
+        <div id="recArea"></div>
+        <div id="demotions"></div>
+        <div class="section-title">Positional run pressure</div>
+        <div id="runsMeter"></div>
+        <div class="section-title">Your watchlist <span style="letter-spacing:0;text-transform:none">(★ players in the pool — survival odds to your next pick)</span></div>
+        <div id="watchArea"><span style="color:var(--dim);font-size:12px">star players in Best Available to track them here</span></div>
+      </div>
+      <div id="sidePanel">
+        <div id="sideTabs">
+          <button class="on" data-tab="pool">Best Available</button>
+          <button data-tab="team">My Team</button>
+        </div>
+        <div class="sideBody on" id="tab-pool">
+          <input id="poolSearch" placeholder="Search player…">
+          <div id="poolPosBar">
+            <button class="on" data-p="">ALL</button><button data-p="QB">QB</button><button data-p="RB">RB</button><button data-p="WR">WR</button><button data-p="TE">TE</button>
+          </div>
+          <table class="pool"><tbody id="poolBody"></tbody></table>
+        </div>
+        <div class="sideBody" id="tab-team"></div>
+      </div>
+    </div>
+    <div id="boardDrawer">
+      <button id="boardToggle"><span>DRAFT BOARD</span><span id="boardMeta"></span><span id="boardArrow">▲</span></button>
+      <div id="boardWrap"></div>
+    </div>
+  </section>
+</main>
+
+<!-- seat picker -->
+<div class="modalBg" id="seatModal">
+  <div class="modal">
+    <h2>Which seat are you?</h2>
+    <div class="hint" id="seatHint">The engine studies the draft from this seat — countdowns, survival odds and every recommendation are computed for it.</div>
+    <div id="seatGrid"></div>
+    <div class="foot"><button class="primary" id="seatConfirm">Lock it in</button></div>
+  </div>
+</div>
+
+<!-- settings -->
+<div class="modalBg" id="setModal">
+  <div class="modal">
+    <h2>Settings</h2>
+    <div class="hint">Stored locally in your browser.</div>
+    <div class="row"><label>Sleeper username</label><input id="setUser" placeholder="optional — auto-detects your seat"></div>
+    <div class="row"><label>Poll interval (ms)</label><input id="setPoll" type="number" min="500" step="250"></div>
+    <div class="foot">
+      <button class="ghost" id="setCache">Clear player cache</button>
+      <button class="ghost" id="setClose">Close</button>
+      <button class="primary" id="setSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- donate -->
+<div class="modalBg" id="donateModal">
+  <div class="modal">
+    <h2>Keep the picks coming 🎁</h2>
+    <div class="hint">Draft Buddy is free, forever. Donations fund upgrades — servers cost nothing, but coffee doesn't. No sign-up here: scan the code with your phone, or tap an amount.</div>
+    <div class="amtRow">
+      <button class="amtBtn" data-amt="1">$1</button>
+      <button class="amtBtn" data-amt="5">$5</button>
+      <button class="amtBtn" data-amt="10">$10</button>
+      <button class="amtBtn" data-amt="20">$20</button>
+    </div>
+    <div class="qrCols">
+      <div class="qrWrap">
+        <img src="assets/venmo-qr.jpg" alt="Venmo QR code">
+        <div class="qrCaption">Venmo — scan with phone camera</div>
+        <div class="donateHandle"><a href="https://venmo.com/Brian-Scott-2" target="_blank" rel="noopener">@Brian-Scott-2</a></div>
+      </div>
+      <div class="qrWrap">
+        <img src="assets/paypal-qr.jpg" alt="PayPal QR code">
+        <div class="qrCaption">Card or PayPal — no account needed</div>
+        <div class="donateHandle"><a href="https://www.paypal.me/brianscott31" target="_blank" rel="noopener">paypal.me/brianscott31</a></div>
+      </div>
+    </div>
+    <div class="foot"><button class="ghost" id="donateClose">Close</button></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
