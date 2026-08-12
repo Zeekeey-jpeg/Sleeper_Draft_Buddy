@@ -1,6 +1,6 @@
 <!-- ============================================================= -->
 <!--  DRAFT BUDDY — README                                         -->
-<!--  A live draft war room for Sleeper. Free, no login, no build. -->
+<!--  Your coach in your ear while YOU draft. Free. No login.      -->
 <!-- ============================================================= -->
 
 <p align="center">
@@ -8,129 +8,90 @@
 </p>
 
 <p align="center">
-  <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=600&size=22&pause=1000&color=F0A832&center=true&vCenter=true&width=780&lines=Your+live+draft+war+room+for+Sleeper.;Survival+odds.+Run+alerts.+The+pick%2C+computed.;Paste+a+draft+link.+Ride+shotgun." alt="typing" />
+  <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=600&size=22&pause=1000&color=F0A832&center=true&vCenter=true&width=780&lines=Your+live+draft+war+room+for+Sleeper.;Who+to+take.+Why.+Right+now.;Paste+a+draft+link.+Ride+shotgun." alt="typing" />
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/license-MIT-f0a832?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/runs%20in-your%20browser-1f6feb?style=for-the-badge&logo=googlechrome&logoColor=white" />
-  <img src="https://img.shields.io/badge/vanilla%20JS-zero%20dependencies-f7df1e?style=for-the-badge&logo=javascript&logoColor=black" />
-  <img src="https://img.shields.io/badge/data-Sleeper%20public%20API-16a34a?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/no%20login-no%20tracking-8a5cf6?style=for-the-badge" />
-</p>
-
-<p align="center">
-  <a href="https://zeekeey-jpeg.github.io/Sleeper_Draft_Buddy/"><b>Open the app</b></a> ·
-  <a href="#-quick-start">Quick start</a> ·
-  <a href="#-how-the-engine-thinks">How the engine thinks</a> ·
-  <a href="#-tip-jar">Tip jar</a>
+  <img src="https://img.shields.io/badge/100%25-free-f0a832?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/phone%20·%20tablet-·%20laptop-1f6feb?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/no%20login-nothing%20to%20install-8a5cf6?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/works%20with-Sleeper-16a34a?style=for-the-badge" />
 </p>
 
 ---
 
 ## What is Draft Buddy?
 
-Draft Buddy is the co-pilot seat for your fantasy football draft. You still draft in Sleeper
-like you always do — Draft Buddy sits next to it, watches every pick land in real time, and
-tells you who to take **and why**. Not a static cheat sheet that was already wrong by round 3.
-A live read of *this* room: who's running on which position, which tier is about to fall off a
-cliff, and the odds your guy is still there when the snake comes back around.
+**It's your coach in your ear while YOU draft.** You still draft in Sleeper like always — Draft
+Buddy watches every pick land and tells you who to take and *why*, right now, for your seat.
 
-It's one HTML file, some vanilla JavaScript, and nothing else. No account, no server, no
-install, no "sign in with Sleeper." Paste a draft link, pick your seat, and it starts talking.
+It will never make a pick for you. That part's still on you, champ.
 
 ---
 
-## ⚡ Features
+## 🚀 Get in here
 
-**Attach to any draft in about five seconds**
-- Paste a Sleeper **mock draft** or **league draft** link (or its raw ID) — that's the whole setup.
-- Seat picker loads the **real team names** straight from the draft, so you click a name, not a number.
-- Teams, rounds, roster slots, and scoring all come from the draft itself. Nothing to configure.
+<p align="center">
+  <a href="https://zeekeey-jpeg.github.io/Sleeper_Draft_Buddy/">
+    <img src="https://img.shields.io/badge/▶%20OPEN%20DRAFT%20BUDDY-Tap%20here%20to%20start-f0a832?style=for-the-badge&labelColor=10151c" alt="Open Draft Buddy" height="46" />
+  </a>
+</p>
 
-**The pick, argued out loud**
-- **THE PICK** card: headshot, team, last season's PPR points and PPG, this season's projection,
-  superflex ADP, tier, and bye week.
-- A plain-English **why** — "only 2 tier-1 RBs left," "startable QB supply dries up around pick 78,"
-  "value falling: ADP 41, still here at pick 56."
-- **PATH B / PATH C** — the best alternatives at other positions, argued the same way, plus a peek
-  at what your *next* turn probably looks like if you take this guy now.
-- **Position lock** — already sold on RB? Tap RB and get the top three with a **BEST BET** call.
+<p align="center">
+  Works on your <b>phone, iPad, or laptop</b> — it checks your screen and hands you the right
+  version. Phone gets the mobile war room, iPad and laptop get the full cockpit.
+</p>
 
-**Survival odds (the good part)**
-- Every candidate carries a **"% chance he makes it back to you"** meter for your next pick.
-- It's not ADP arithmetic — it walks every pick between now and your turn, asks whether *that*
-  team actually needs the position, and factors in how fast the room is eating that position.
-- The model recalibrates to **your** room live, so keeper leagues and fast rooms don't break it.
+### 📲 Put it on your phone like an app
 
-**Run detection that pages you**
-- Positional **run pressure meters** — green is a normal market, red means they're going fast.
-- A persistent **🔥 RUN** alert with a one-tap "Lock RB" button. A run is a decision moment,
-  not a toast you'll miss while you're looking at your phone.
+1. Open the link above on your phone.
+2. Hit the **Share** button (iPhone) or the **⋮ menu** (Android).
+3. Tap **Add to Home Screen**.
 
-**Situational awareness**
-- **Gone since your last turn** — a live strip of every player who came off the board while you
-  were away, hot positions flagged.
-- **Bye-week coverage strip** — can you field a *full* lineup every single week, or does week 11
-  leave a starter slot empty?
-- **Watchlist (★)** to track your guys' survival odds, and **never-suggest (🚫)** for the player
-  who personally wronged you in 2024. Both persist between sessions.
-- **Full draft board** — the whole snake grid, keepers marked, your column highlighted.
-- Injury designations, fresh news, trending adds, and mass-drop warnings surface on the card.
+Now it's an icon next to your other apps. No app store, no account.
 
-**Built for the real thing**
-- **Superflex / 2QB aware** throughout — ADP, replacement level, and roster needs all know that
-  a spare WR does not cover a SFLEX slot.
-- **Keepers** load and display, and the engine accounts for the picks they occupy.
-- **Adaptive polling (150–500ms)** — picks appear near-instantly, and it speeds up as your turn approaches.
-- Everything runs **client-side**, talking straight to Sleeper's public read-only API.
-  No login, no backend, no analytics. Your watchlist and settings live in your browser's localStorage.
+### 💻 Want it on your desktop?
+
+Grab the zip from **[Releases](https://github.com/Zeekeey-jpeg/Sleeper_Draft_Buddy/releases/latest)**,
+unzip it, and double-click `run.cmd` (Windows) or `run.sh` (Mac) — it opens right up.
+
+### Then:
+
+1. **Paste your Sleeper draft link** — or just type your Sleeper username and it finds your drafts for you.
+2. **Tap your seat.** Your league's team names are already filled in.
+3. That's it. Go draft.
+
+> 🚨 **One gotcha:** mocks you start inside the Sleeper *phone app's* lobby are invisible to
+> everything outside Sleeper — nothing to paste. Start mocks at **sleeper.com** in a browser
+> instead. Real league drafts work fine either way.
 
 ---
 
-## 🚀 Quick start
+## 🏈 What it does
 
-### Option A — just open it (nothing to install)
+- **📡 Every pick, live.** The board updates the second someone picks. No refreshing.
+- **🎯 Who to take — and why.** Not just a name. "Last stud RB before the drop-off." "3 QBs
+  just went." In actual English.
+- **⏳ "Will he come back to me?"** A straight-up percentage on whether your guy survives to
+  your next pick. This is the fun one.
+- **🔥 Run alerts.** When the room starts panic-drafting a position, you get told *while it's
+  happening*, not after.
+- **🧾 Your roster + bye weeks.** See your lineup filling in, and get warned when week 11 would
+  leave you starting nobody.
+- **⭐ Star your guys. 🚫 Ban the ones who burned you.** Both stick around next time.
+- **🏆 Superflex, 2QB, keepers — all handled.** It reads your league's real settings.
+- **🔒 No login, no install, no tracking.** Nothing to sign up for. Nothing leaves your phone.
 
-**[zeekeey-jpeg.github.io/Sleeper_Draft_Buddy](https://zeekeey-jpeg.github.io/Sleeper_Draft_Buddy/)**
-
-That's it. It's a static page; it loads and it's ready.
-
-### Option B — run it locally
-
-Clone or download the repo, then double-click:
-
-| Platform | File |
-|---|---|
-| Windows | `run.cmd` |
-| macOS / Linux | `run.sh` |
-
-Each one serves the folder locally and opens your browser at the app. (Nothing gets installed
-and nothing phones home — it's just a local static file server.)
-
-```bash
-git clone https://github.com/Zeekeey-jpeg/Sleeper_Draft_Buddy
-cd Sleeper_Draft_Buddy
-./run.sh          # Windows: run.cmd
-```
-
-### Then, in the app
-
-1. Click **Enter Your Draft** — mocks and league drafts are the same door.
-2. Paste your Sleeper draft link — `https://sleeper.com/draft/nfl/123456789012345678` — or just the long ID.
-3. Pick your seat from the grid (team names are already filled in).
-4. Draft in Sleeper. Draft Buddy does the rest.
-
-> ### ⚠️ One caveat worth knowing
-> **Mocks started from the Sleeper phone app's lobby are invisible to Sleeper's public API.**
-> They aren't published anywhere Draft Buddy can reach, so there's no link to paste and nothing
-> to attach to. Start your mock from **sleeper.com → Mock Draft in a browser** instead — that
-> gives you a real `sleeper.com/draft/nfl/...` URL, and everything works. Real league drafts are
-> fine either way.
+<p align="center"><sub>
+Draft Buddy suggests — it never makes a pick for you. Every Sleeper call is read-only.
+</sub></p>
 
 ---
 
-## 🧠 How the engine thinks
+<details>
+<summary><b>🧠 For the nerds: how the engine actually thinks</b></summary>
+
+<br/>
 
 No black box. Here's the whole chain, in order:
 
@@ -180,9 +141,9 @@ argument and a preview of what your following pick likely looks like.
 
 It's deterministic: the same room state always produces the same advice. No dice, no vibes.
 
----
+<br/>
 
-## ❓ FAQ
+### A few common questions
 
 **Is this allowed?**
 Yes. Draft Buddy only *reads* from Sleeper's public API — the same endpoints that power public
@@ -190,20 +151,24 @@ draft boards. It never makes a pick, never automates anything, and never writes 
 back. Every selection is still yours, entered by you, in Sleeper. It's a second screen, not a bot.
 
 **Does it see my Sleeper account?**
-No. There's no login, no OAuth, no password field, no token. It reads public draft data and
-that's all. Nothing you do in the app leaves your browser — your watchlist, your banned players,
-and your settings live in localStorage on your own machine. There's no backend to send anything
-to, and no analytics of any kind.
+No. There's no login, no password field, no token. It reads public draft data and that's all.
+Your watchlist, your banned players, and your settings live on your own device. There's no
+backend to send anything to, and no analytics of any kind.
 
 **What league types work?**
 Snake drafts, including third-round-reversal. Redraft and **keeper** leagues (keepers load onto
 the board and the engine accounts for the picks they consume). **Superflex / 2QB is fully
-supported** and treated as a first-class format rather than an afterthought — roster math, ADP,
-and replacement levels all understand it. Auction drafts are not supported.
+supported** — roster math, ADP, and replacement levels all understand it. Auction drafts are not
+supported.
 
-**Do I need to keep it open the whole draft?**
-Nope. If it closes, reopen it, re-attach, and confirm your seat — the entire pick history
-refetches in one poll and you're back where the room is.
+**What if it closes mid-draft?**
+Reopen it, re-attach, confirm your seat. The entire pick history reloads in one shot and you're
+right back where the room is. Takes about fifteen seconds.
+
+**Under the hood:** one HTML file and plain JavaScript. No frameworks, no dependencies, no build
+step. Read all of it if you want — it's MIT licensed.
+
+</details>
 
 ---
 

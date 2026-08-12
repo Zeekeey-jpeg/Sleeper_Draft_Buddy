@@ -27,6 +27,21 @@ delete settings.leagueId; // pre-open-source builds pinned a league here
 const avoidIds = new Set(store.get('avoid', []));
 const starIds = new Set(store.get('stars', []));
 
+/* ---------------- adaptive shell: single codebase, single URL ----------------
+ * body.mobile toggles the tabbed phone layout; every mobile CSS rule is scoped
+ * under it, so desktop is byte-identical regardless of what this returns. */
+function shellMode() {
+  const forced = store.get('shell', 'auto'); // 'auto' | 'mobile' | 'desktop'
+  if (forced !== 'auto') return forced;
+  // phones get the mobile shell; iPads (768px+ logical) and laptops get the full cockpit
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  const narrow = matchMedia('(max-width: 700px)').matches;
+  return (coarse && narrow) || matchMedia('(max-width: 560px)').matches ? 'mobile' : 'desktop';
+}
+function applyShell() {
+  document.body.classList.toggle('mobile', shellMode() === 'mobile');
+}
+
 /* ---------------- app state ---------------- */
 const S = {
   league: null,
@@ -36,6 +51,11 @@ const S = {
   polling: null, errStreak: 0,
   lastPickCount: -1, poolFilter: { q: '', pos: '' },
   statusTick: 0,
+  // always-live lifecycle: pollActive gates whether the chain is allowed to run
+  // at all; pollGen invalidates any in-flight/scheduled tick the instant a
+  // cycle stops or restarts (a fetch suspended mid-flight for minutes on iOS
+  // resolves into a no-op instead of clobbering fresher state).
+  pollActive: false, pollGen: 0, lastTickAt: 0, _tickBusy: false,
 };
 
 /* ---------------- tiny DOM helpers ---------------- */
@@ -66,7 +86,9 @@ function headshotHtml(p, size) {
 
 /* ---------------- Sleeper client ---------------- */
 async function api(path) {
-  const res = await fetch(API + path);
+  // no-store: a resumed WebKit process must never serve a heuristic-cached
+  // picks response — staleness during a live draft is the one unacceptable bug.
+  const res = await fetch(API + path, { cache: 'no-store' });
   if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + path);
   return res.json();
 }
@@ -151,17 +173,127 @@ function rebuildValues() {
  * identical to the engine; everything comes from the draft object) ------- */
 function showAttach() {
   attachStatus('');
+  renderRejoinChip();
+  renderDraftList();
   showView('viewMock');
   $('mockIdInput').focus();
 }
 function attachStatus(msg) { $('attachStatus').textContent = msg || ''; }
 
+/* ---------------- draft discovery: username -> drafts, rejoin-last ---------------- */
+// Shared by the Settings modal and the discovery lane — one lookup, one place
+// that decides what "known user" means for seat auto-detect everywhere else.
+async function resolveUser(name) {
+  const u = await api('/v1/user/' + encodeURIComponent(name));
+  settings.username = u.display_name || name;
+  settings.userId = u.user_id;
+  store.set('settings', settings);
+  return { username: settings.username, userId: settings.userId };
+}
+function draftLabel() {
+  return (S.league && S.league.name) || (S.draft && S.draft.metadata && S.draft.metadata.name) || 'Your draft';
+}
+function renderRejoinChip() {
+  const chip = $('rejoinChip');
+  const last = store.get('lastDraft', null);
+  const stale = last && last.status === 'complete' && Date.now() - (last.ts || 0) > 24 * 3600 * 1000;
+  if (!last || !last.draftId || stale) { chip.style.display = 'none'; chip.onclick = null; return; }
+  chip.style.display = 'flex';
+  chip.innerHTML = '<span>↻ Rejoin <b>' + esc(last.label || 'your last draft') + '</b> · Seat ' + esc(last.seat) + '</span>' +
+    '<button class="x" title="dismiss">✕</button>';
+  chip.onclick = (e) => { if (e.target.closest('.x')) return; attach(last.draftId, { preselectSeat: last.seat }); };
+  chip.querySelector('.x').onclick = (e) => {
+    e.stopPropagation();
+    store.set('lastDraft', null);
+    chip.style.display = 'none';
+    chip.onclick = null;
+  };
+}
+async function tryDiscover() {
+  const uname = $('discUser').value.trim();
+  if (!uname) { toast('Type a Sleeper username first'); return; }
+  discoverState('loading', uname);
+  try {
+    await resolveUser(uname);
+    await renderDraftList();
+  } catch (e) {
+    discoverState('notfound', uname);
+  }
+}
+// Inline states in #draftList itself — a 6s toast disappears before a drafter
+// on a phone reads it; these have to sit there until acted on.
+function discoverState(kind, uname) {
+  const box = $('draftList');
+  if (kind === 'loading') {
+    box.innerHTML = '<div class="discState">looking up ' + esc(uname || settings.username || '') + '…</div>';
+  } else if (kind === 'notfound') {
+    box.innerHTML = '<div class="discState err">Couldn’t find that Sleeper username — check the spelling.</div>';
+  } else if (kind === 'empty') {
+    box.innerHTML = '<div class="discState">No drafts visible for ' + esc(settings.username) + '. Heads up: mocks started in the ' +
+      'Sleeper phone app’s lobby are invisible outside Sleeper — start your mock at sleeper.com in a browser and it’ll ' +
+      'show up here. League drafts always show.</div>';
+  } else if (kind === 'error') {
+    box.innerHTML = '<div class="discState err">Couldn’t reach Sleeper — <button class="retryBtn" id="discRetry">tap to retry</button></div>';
+    $('discRetry').onclick = () => renderDraftList();
+  } else {
+    box.innerHTML = '';
+  }
+}
+async function renderDraftList() {
+  const ask = $('discoverAsk');
+  if (!settings.userId) { ask.style.display = 'flex'; discoverState('none'); return; }
+  ask.style.display = 'none';
+  discoverState('loading');
+  try {
+    const drafts = await api('/v1/user/' + settings.userId + '/drafts/nfl/' + SEASON);
+    if (!drafts.length) { discoverState('empty'); return; }
+    const rank = { drafting: 0, pre_draft: 1, complete: 2 };
+    const sorted = drafts.slice().sort((a, b) => {
+      const ra = rank[a.status] ?? 3, rb = rank[b.status] ?? 3;
+      if (ra !== rb) return ra - rb;
+      if (a.status === 'pre_draft') return (a.start_time || Infinity) - (b.start_time || Infinity);
+      return 0;
+    });
+    const active = sorted.filter((d) => d.status !== 'complete');
+    const done = sorted.filter((d) => d.status === 'complete').slice(0, 5);
+    renderDraftRows(active.concat(done));
+  } catch (e) {
+    discoverState('error');
+  }
+}
+function renderDraftRows(drafts) {
+  const box = $('draftList'); box.innerHTML = '';
+  for (const d of drafts) {
+    const row = el('button', 'draftRow' + (d.status === 'complete' ? ' done' : ''));
+    const name = (d.metadata && d.metadata.name) || (d.league_id ? 'League draft' : 'Mock draft');
+    const teams = d.settings && d.settings.teams;
+    const when = d.start_time ? new Date(d.start_time).toLocaleDateString() : '';
+    const label = d.status === 'drafting' ? '🔴 LIVE' : d.status === 'pre_draft' ? '⏳ scheduled' : 'done';
+    row.innerHTML =
+      '<span class="dstatus ' + esc(d.status || '') + '">' + esc(label) + '</span>' +
+      '<span class="dn">' + esc(name) + '</span>' +
+      '<span class="dmeta">' + (teams ? teams + '-team' : '') + (d.type ? ' · ' + esc(d.type) : '') + (when ? ' · ' + when : '') + '</span>';
+    row.onclick = () => attach(d.draft_id);
+    box.appendChild(row);
+  }
+}
+
 /* ---------------- attach + seat picker ---------------- */
-async function attach(draftId) {
+// opts.preselectSeat: seat-picker preselect only (still requires "Lock it in").
+// opts.autoSeat: eviction-recovery boot path — bypasses the picker entirely.
+async function attach(draftId, opts) {
+  opts = opts || {};
   try {
     banner(null);
     attachStatus('connecting to draft…');
     const draft = await api('/v1/draft/' + draftId);
+    if (opts.autoSeat && draft.status === 'complete') {
+      // stale eviction record pointing at a finished draft — don't trap the user, just go home
+      store.set('activeDraft', null);
+      attachStatus('');
+      goHome();
+      return;
+    }
     // league (scoring + team names) rides along when the draft belongs to one
     let league = null, leagueUsers = [];
     if (draft.league_id) {
@@ -186,14 +318,23 @@ async function attach(draftId) {
     S.slotNames = {};
     for (const uid in order) S.slotNames[order[uid]] = userById[uid] || ('user ' + uid.slice(-4));
     for (let i = 1; i <= S.shape.teams; i++) if (!S.slotNames[i]) S.slotNames[i] = draft.league_id ? 'Team ' + i : 'CPU ' + i;
-    // seat preselect: configured username first, else the lone human in a mock
-    let pre = (settings.userId && order[settings.userId]) || null;
+    if (opts.autoSeat && opts.autoSeat <= S.shape.teams) {
+      attachStatus('');
+      toast('Rejoined your draft — tap ⌂ to leave');
+      startDraftSession(opts.autoSeat);
+      return;
+    }
+    // seat preselect: a rejoin request wins outright, then configured username, else the lone human in a mock
+    let pre = (opts.preselectSeat && opts.preselectSeat <= S.shape.teams ? opts.preselectSeat : null) ||
+      (settings.userId && order[settings.userId]) || null;
     const humans = Object.keys(order);
     if (!pre && humans.length === 1) pre = order[humans[0]];
     attachStatus('');
     openSeatPicker(pre || null);
   } catch (e) {
-    noteErr(e); attachStatus(''); toast('Could not load draft ' + draftId);
+    noteErr(e); attachStatus('');
+    if (opts.autoSeat) { store.set('activeDraft', null); goHome(); return; } // broken eviction record — never trap the user
+    toast('Could not load draft ' + draftId);
   }
 }
 function openSeatPicker(preselect) {
@@ -221,19 +362,54 @@ function startDraftSession(seat) {
   $('seatChip').textContent = 'Seat ' + seat + ' · ' + (S.slotNames[seat] || settings.username);
   showView('viewDraft');
   startPolling();
+  acquireWakeLock();
+  const label = draftLabel();
+  const status = S.draft && S.draft.status;
+  // lastDraft: long-lived "you were here" record for the rejoin chip — goHome
+  // does NOT clear it, only attaching a different draft overwrites it.
+  store.set('lastDraft', { draftId: S.draftId, seat, label, status, ts: Date.now() });
+  // activeDraft: eviction-recovery record — cleared on goHome/draft-complete,
+  // read once at boot to auto-rejoin if the app was force-killed mid-draft.
+  store.set('activeDraft', { draftId: S.draftId, seat, name: label, at: Date.now() });
 }
 
 /* ---------------- live picks polling ---------------- */
 function startPolling() {
   stopPolling();
+  S.pollActive = true;
+  S.pollGen++;
+  runTick(S.pollGen);
+}
+function stopPolling() {
+  S.pollActive = false;
+  S.pollGen++; // invalidates any in-flight/scheduled tick, even one mid-fetch
+  if (S.polling) { clearTimeout(S.polling); S.polling = null; }
+}
+/* Immediate fetch, collapsing bursts: at most one tick per 250ms, and if a
+ * tick's fetch is already in flight we just let it finish (it reschedules
+ * itself). This is the entire "resume" contract — one fresh poll, never a
+ * queue of catch-up ticks for time spent backgrounded. */
+function pollNow() {
+  if (!S.pollActive || S._tickBusy) return;
+  if (Date.now() - S.lastTickAt < 250) return;
+  if (S.polling) { clearTimeout(S.polling); S.polling = null; }
+  S.pollGen++;
+  runTick(S.pollGen);
+}
+function runTick(gen) {
   const tick = async () => {
+    if (gen !== S.pollGen || !S.pollActive) return; // superseded or stopped
+    S._tickBusy = true;
+    S.lastTickAt = Date.now();
     try {
       const picks = await api('/v1/draft/' + S.draftId + '/picks');
+      if (gen !== S.pollGen) return; // zombie resolved after suspend/leave
       noteOk();
       S.statusTick++;
       const waiting = S.draft && S.draft.status === 'pre_draft';
       if (waiting || S.statusTick % 5 === 0) {
         api('/v1/draft/' + S.draftId).then((d) => {
+          if (gen !== S.pollGen) return;
           const was = S.draft && S.draft.status;
           S.draft = d;
           if (was === 'pre_draft' && d.status === 'drafting') {
@@ -252,9 +428,23 @@ function startPolling() {
         S._changed = false;
         renderTickerOnly();
       }
-    } catch (e) { noteErr(e); }
+    } catch (e) {
+      if (gen !== S.pollGen) return;
+      if (document.visibilityState === 'visible') noteErr(e); // hidden-tab fetch kills are not errors
+    } finally {
+      S._tickBusy = false;
+    }
+    if (gen !== S.pollGen || !S.pollActive) return;
     const status = S.draft && S.draft.status;
-    if (status === 'complete') { setConn('live', 'draft complete'); return; }
+    if (status === 'complete') {
+      setConn('live', 'draft complete');
+      S.pollActive = false;
+      store.set('activeDraft', null); // eviction-recovery record is meaningless once the draft is done
+      const last = store.get('lastDraft', null);
+      if (last && last.draftId === S.draftId) store.set('lastDraft', Object.assign(last, { status: 'complete' }));
+      return;
+    }
+    if (document.visibilityState === 'hidden') return; // chain parks; lifecycle resumes it with pollNow()
     // Adaptive cadence: burst-drain right after new picks (mock CPUs machine-gun
     // between human turns), red-zone speed near your pick, base rate otherwise.
     let delay = settings.pollMs;
@@ -264,7 +454,36 @@ function startPolling() {
   };
   tick();
 }
-function stopPolling() { if (S.polling) { clearTimeout(S.polling); S.polling = null; } }
+
+/* ---------------- app-switch lifecycle (visibility/bfcache/focus/online) ---------------- */
+function initLifecycle() {
+  const resume = () => { if (S.pollActive) { setConn('', 'refreshing'); pollNow(); } };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      resume();
+      if ($('viewDraft').classList.contains('active')) acquireWakeLock();
+    } else if (S.polling) {
+      clearTimeout(S.polling); S.polling = null; // park, stay pollActive — no queued catch-up ticks
+    }
+  });
+  // iOS bfcache: back-swipe / app-switch bounce restores the frozen page; e.persisted is the only signal
+  window.addEventListener('pageshow', (e) => { if (e.persisted) resume(); });
+  // older-iOS belt: app switch sometimes fires only pagehide/focus, not visibilitychange
+  window.addEventListener('pagehide', () => { if (S.polling) { clearTimeout(S.polling); S.polling = null; } });
+  window.addEventListener('focus', resume);
+  window.addEventListener('online', resume);
+}
+
+/* ---------------- screen wake lock while drafting ---------------- */
+let wakeLock = null;
+async function acquireWakeLock() {
+  try {
+    if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+  } catch (e) { /* unsupported, denied, or backgrounded — non-fatal, poll cadence still covers us */ }
+}
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+}
 
 /* ---------------- recompute + render ---------------- */
 function normalizePicks(picks) {
@@ -629,6 +848,8 @@ function toggleAvoid(pid) {
 /* ---------------- wiring ---------------- */
 function goHome() {
   stopPolling();
+  releaseWakeLock();
+  store.set('activeDraft', null);
   document.title = 'Draft Buddy';
   $('seatChip').style.display = 'none';
   showView('viewHome');
@@ -649,6 +870,8 @@ function wire() {
   $('mockIdInput').addEventListener('paste', () => setTimeout(() => {
     if (/\d{15,20}/.test($('mockIdInput').value)) attachById();
   }, 50));
+  $('discGo').onclick = tryDiscover;
+  $('discUser').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryDiscover(); });
   $('btnHome').onclick = goHome;
   $('btnDraftBack').onclick = goHome;
   // position lock
@@ -667,6 +890,18 @@ function wire() {
     drawer.classList.toggle('open');
     store.set('boardOpen', drawer.classList.contains('open'));
   };
+  // mobile tab bar — panes ARE the existing #warRoom/#sidePanel/#boardDrawer
+  // nodes (CSS visibility only); Pool/Team route through the real #sideTabs
+  // buttons so that state machine stays the single source of truth.
+  document.body.dataset.mtab = 'war';
+  document.querySelectorAll('#mTabs button').forEach((b) => {
+    b.onclick = () => {
+      document.body.dataset.mtab = b.dataset.mtab;
+      document.querySelectorAll('#mTabs button').forEach((x) => x.classList.toggle('on', x === b));
+      if (b.dataset.mtab === 'pool') $('sideTabs').querySelector('[data-tab=pool]').click();
+      if (b.dataset.mtab === 'team') $('sideTabs').querySelector('[data-tab=team]').click();
+    };
+  });
   // side tabs
   document.querySelectorAll('#sideTabs button').forEach((b) => {
     b.onclick = () => {
@@ -704,8 +939,13 @@ function wire() {
   $('btnSettings').onclick = () => {
     $('setUser').value = settings.username;
     $('setPoll').value = settings.pollMs;
+    const currentShell = store.get('shell', 'auto');
+    document.querySelectorAll('.segBtn').forEach((b) => b.classList.toggle('on', b.dataset.shell === currentShell));
     $('setModal').classList.add('on');
   };
+  document.querySelectorAll('.segBtn').forEach((b) => {
+    b.onclick = () => document.querySelectorAll('.segBtn').forEach((x) => x.classList.toggle('on', x === b));
+  });
   $('setClose').onclick = () => $('setModal').classList.remove('on');
   $('setCache').onclick = () => { localStorage.removeItem('db.playersCacheV2'); toast('Player cache cleared — reload to refetch'); };
   $('setSave').onclick = async () => {
@@ -713,20 +953,25 @@ function wire() {
     settings.pollMs = Math.max(300, parseInt($('setPoll').value, 10) || DEFAULTS.pollMs);
     if (newUser && newUser !== settings.username) {
       try {
-        const u = await api('/v1/user/' + encodeURIComponent(newUser));
-        settings.username = u.display_name || newUser;
-        settings.userId = u.user_id;
+        await resolveUser(newUser);
         toast('Hello ' + settings.username);
       } catch (e) { toast('Sleeper user "' + newUser + '" not found'); }
     } else if (!newUser) {
       settings.username = ''; settings.userId = '';
     }
+    const shellSel = document.querySelector('.segBtn.on');
+    store.set('shell', shellSel ? shellSel.dataset.shell : 'auto');
+    applyShell();
     store.set('settings', settings);
     $('setModal').classList.remove('on');
   };
 }
 
 /* ---------------- splash ---------------- */
+// Triple fallback, safest first: if canvas is unsupported, if the image takes
+// >250ms to arrive, or if anything errors, the <img>+splashZoom CSS animation
+// underneath just keeps running untouched — the canvas only ever swaps in once
+// it has something real to show, never leaving a blank frame.
 function initSplash() {
   const splash = $('splash');
   if (!splash) return;
@@ -738,17 +983,63 @@ function initSplash() {
     splash.addEventListener('transitionend', () => splash.remove(), { once: true });
   };
   splash.addEventListener('click', dismiss);
-  setTimeout(dismiss, 1100);
+  splash.addEventListener('touchstart', dismiss, { passive: true });
+  setTimeout(dismiss, 1400);
+
+  const cv = $('splashCv'), img = splash.querySelector('img');
+  const ctx = cv && cv.getContext && cv.getContext('2d');
+  if (!ctx) return; // fallback: CSS zoom on the <img> runs as today
+  const src = new Image();
+  src.src = 'assets/hmb-logo.png'; // cache hit — header already loaded it
+  const started = Date.now();
+  src.onload = () => {
+    if (done || Date.now() - started > 250) return; // image late → keep CSS fallback
+    img.style.display = 'none'; cv.style.display = 'block';
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = 110 * dpr; cv.height = 110 * dpr;
+    const off = document.createElement('canvas');
+    const T = 900; // resolve duration; word anim (.55s delay) unchanged
+    const step = () => {
+      if (done) return;
+      const t = Math.min(1, (Date.now() - started) / T);
+      const e = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      const res = Math.max(6, Math.round(6 + e * (110 - 6))); // 6px cells -> full res
+      off.width = res; off.height = res;
+      const octx = off.getContext('2d');
+      octx.imageSmoothingEnabled = true; // clean downsample
+      octx.drawImage(src, 0, 0, res, res);
+      ctx.imageSmoothingEnabled = t >= 1; // chunky upscale until the last frame
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.drawImage(off, 0, 0, cv.width, cv.height);
+      if (t < 1) requestAnimationFrame(step);
+      else cv.classList.add('lit');
+    };
+    requestAnimationFrame(step);
+  };
 }
 
 /* ---------------- boot ---------------- */
 async function boot() {
   wire();
   initSplash();
+  initLifecycle();
+  applyShell();
+  let resizeT = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(applyShell, 150);
+  });
+  window.addEventListener('orientationchange', applyShell);
   // warm the projections/player cache in the background so attach feels instant
   loadStaticData().then(() => setConn('live', 'ready')).catch(() => {
     setConn('', 'idle'); // attach() will retry and surface any real error
   });
+  // Eviction recovery: the app was force-killed mid-draft (a real scenario on
+  // phones, not an edge case) — skip home entirely and go straight back live.
+  const active = store.get('activeDraft', null);
+  if (active && active.draftId && Date.now() - active.at < 6 * 3600 * 1000) {
+    attach(active.draftId, { autoSeat: active.seat });
+  }
 }
 document.addEventListener('DOMContentLoaded', boot);
 
