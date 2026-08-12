@@ -208,6 +208,9 @@
   .amtRow { display: flex; gap: 10px; margin: 4px 0 16px; }
   .amtBtn { flex: 1; border: 1px solid var(--line); border-radius: 10px; padding: 10px 6px; text-align: center; font-size: 15px; font-weight: 700; }
   .amtBtn:hover { border-color: var(--accent); color: var(--accent); background: rgba(240,168,50,.08); }
+  .amtBtn.sel { border-color: var(--accent); color: var(--accent); background: rgba(240,168,50,.12); }
+  .railBtn { width: 100%; max-width: 200px; border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; font-size: 12.5px; font-weight: 600; color: var(--text); background: var(--panel2); }
+  .railBtn:hover { border-color: var(--accent); color: var(--accent); }
   .qrCols { display: flex; gap: 18px; margin: 4px 0 4px; }
   .qrWrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
   .qrWrap img { width: 100%; max-width: 200px; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); }
@@ -280,16 +283,20 @@
     <img src="assets/hmb-logo.png" alt="Draft Buddy">
     <h1>DRAFT BUDDY<small>A HELPMEBIM WAR ROOM</small></h1>
     <div class="homeBtns">
-      <button class="bigBtn" id="btnMock"><span class="ico">🏈</span><span class="t">Mock Draft</span><div class="d">Paste your Sleeper mock draft link and practice with a live co-pilot</div></button>
-      <button class="bigBtn" id="btnRoom"><span class="ico">🔴</span><span class="t">Draft Room</span><div class="d">Attach to your real league draft and ride shotgun</div></button>
+      <button class="bigBtn" id="btnEnter"><span class="ico">🏈</span><span class="t">Enter Your Draft</span><div class="d">Paste your Sleeper draft link — mock or the real thing — and ride shotgun</div></button>
     </div>
   </section>
 
   <!-- ATTACH (mock + room share this view) -->
   <section class="view" id="viewMock">
     <div class="pulse">📡</div>
-    <h2 id="attachTitle">Attach a draft</h2>
-    <div id="attachHint" style="color:var(--dim);font-size:13px;max-width:560px;text-align:center"></div>
+    <h2 id="attachTitle">Attach your draft</h2>
+    <div id="attachHint" style="color:var(--dim);font-size:13px;max-width:560px;text-align:center">
+      Open your draft room on <b>sleeper.com</b> — mock or league draft, it's all the same to me — and paste its link
+      (or the long draft ID) below. Teams, seats and scoring load straight from the draft; whatever Sleeper reports is what you get.
+      <br><br>Heads up: <b>phone-app lobby mocks are invisible to Sleeper's public API</b> —
+      start mocks at <b>sleeper.com &rarr; Mock Draft</b> in a browser instead.
+    </div>
     <div style="display:flex;gap:8px;width:min(520px, 92vw)">
       <input id="mockIdInput" placeholder="Paste draft link or ID… e.g. sleeper.com/draft/nfl/1234…" style="flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 12px">
       <button class="primary" id="mockIdGo">Attach</button>
@@ -381,10 +388,10 @@
 <div class="modalBg" id="donateModal">
   <div class="modal">
     <h2>Keep the picks coming 🎁</h2>
-    <div class="hint">Draft Buddy is free, forever. Donations fund upgrades — servers cost nothing, but coffee doesn't. No sign-up here: scan the code with your phone, or tap an amount.</div>
+    <div class="hint">Draft Buddy is free, forever. Donations fund upgrades — servers cost nothing, but coffee doesn't. No sign-up here: pick an amount, then pick your rail — or just scan a code with your phone.</div>
     <div class="amtRow">
       <button class="amtBtn" data-amt="1">$1</button>
-      <button class="amtBtn" data-amt="5">$5</button>
+      <button class="amtBtn sel" data-amt="5">$5</button>
       <button class="amtBtn" data-amt="10">$10</button>
       <button class="amtBtn" data-amt="20">$20</button>
     </div>
@@ -392,11 +399,13 @@
       <div class="qrWrap">
         <img src="assets/venmo-qr.jpg" alt="Venmo QR code">
         <div class="qrCaption">Venmo — scan with phone camera</div>
+        <button class="railBtn" id="goVenmo">Open Venmo →</button>
         <div class="donateHandle"><a href="https://venmo.com/Brian-Scott-2" target="_blank" rel="noopener">@Brian-Scott-2</a></div>
       </div>
       <div class="qrWrap">
         <img src="assets/paypal-qr.jpg" alt="PayPal QR code">
         <div class="qrCaption">Card or PayPal — no account needed</div>
+        <button class="railBtn" id="goPaypal">Pay with card / PayPal →</button>
         <div class="donateHandle"><a href="https://www.paypal.me/brianscott31" target="_blank" rel="noopener">paypal.me/brianscott31</a></div>
       </div>
     </div>

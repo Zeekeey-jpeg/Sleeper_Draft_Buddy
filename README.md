@@ -116,7 +116,7 @@ cd Sleeper_Draft_Buddy
 
 ### Then, in the app
 
-1. Click **Mock Draft** or **Draft Room**.
+1. Click **Enter Your Draft** — mocks and league drafts are the same door.
 2. Paste your Sleeper draft link — `https://sleeper.com/draft/nfl/123456789012345678` — or just the long ID.
 3. Pick your seat from the grid (team names are already filled in).
 4. Draft in Sleeper. Draft Buddy does the rest.

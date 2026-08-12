@@ -35,7 +35,7 @@ const S = {
   slotNames: {}, analysis: null, lockedPos: '',
   polling: null, errStreak: 0,
   lastPickCount: -1, poolFilter: { q: '', pos: '' },
-  statusTick: 0, mode: null, // 'mock' | 'room'
+  statusTick: 0,
 };
 
 /* ---------------- tiny DOM helpers ---------------- */
@@ -71,7 +71,7 @@ async function api(path) {
   return res.json();
 }
 function noteOk() {
-  S.errStreak = 0; banner(null); setConn('live', S.mode === 'mock' ? 'mock live' : 'live');
+  S.errStreak = 0; banner(null); setConn('live', 'live');
   const dot = document.querySelector('#conn .dot');
   if (dot) { dot.classList.remove('ping'); void dot.offsetWidth; dot.classList.add('ping'); }
 }
@@ -147,24 +147,9 @@ function rebuildValues() {
   E.assignTiers(S.pool);
 }
 
-/* ---------------- attach view (mock + room share it) ---------------- */
-const ATTACH_COPY = {
-  mock: {
-    title: 'Attach a mock draft',
-    hint: 'Heads up: Sleeper’s <b>phone-app lobby mocks are invisible to its public API</b>. ' +
-      'Start a mock at <b>sleeper.com &rarr; Mock Draft</b> in any browser, then paste the draft-room link (or its long ID number) below.',
-  },
-  room: {
-    title: 'Attach your league draft',
-    hint: 'Open your draft room on <b>sleeper.com</b> and paste its link (or the long draft ID) below. ' +
-      'Teams, seats and scoring load straight from the draft — nothing to configure.',
-  },
-};
-function showAttach(mode) {
-  S.mode = mode;
-  const copy = ATTACH_COPY[mode];
-  $('attachTitle').textContent = copy.title;
-  $('attachHint').innerHTML = copy.hint;
+/* ---------------- attach view (one flow — mock and league drafts are
+ * identical to the engine; everything comes from the draft object) ------- */
+function showAttach() {
   attachStatus('');
   showView('viewMock');
   $('mockIdInput').focus();
@@ -643,15 +628,14 @@ function toggleAvoid(pid) {
 
 /* ---------------- wiring ---------------- */
 function goHome() {
-  stopPolling(); S.mode = null;
+  stopPolling();
   document.title = 'Draft Buddy';
   $('seatChip').style.display = 'none';
   showView('viewHome');
 }
 function wire() {
-  $('btnMock').onclick = () => showAttach('mock');
-  $('btnRoom').onclick = () => showAttach('room');
-  $('btnMockBack').onclick = () => { S.mode = null; showView('viewHome'); };
+  $('btnEnter').onclick = showAttach;
+  $('btnMockBack').onclick = () => showView('viewHome');
   // attach by pasted draft link or raw ID (phone-lobby mocks are not API-discoverable)
   const attachById = () => {
     const raw = $('mockIdInput').value.trim();
@@ -706,9 +690,16 @@ function wire() {
   $('btnDonate').onclick = () => $('donateModal').classList.add('on');
   $('donateClose').onclick = () => $('donateModal').classList.remove('on');
   $('donateModal').addEventListener('click', (e) => { if (e.target === $('donateModal')) $('donateModal').classList.remove('on'); });
+  // amounts select; the rail buttons carry the chosen amount to Venmo or PayPal
+  let donateAmt = '5';
   document.querySelectorAll('.amtBtn').forEach((b) => {
-    b.onclick = () => window.open('https://venmo.com/Brian-Scott-2?txn=pay&amount=' + b.dataset.amt + '&note=Draft%20Buddy', '_blank', 'noopener');
+    b.onclick = () => {
+      donateAmt = b.dataset.amt;
+      document.querySelectorAll('.amtBtn').forEach((x) => x.classList.toggle('sel', x === b));
+    };
   });
+  $('goVenmo').onclick = () => window.open('https://venmo.com/Brian-Scott-2?txn=pay&amount=' + donateAmt + '&note=Draft%20Buddy', '_blank', 'noopener');
+  $('goPaypal').onclick = () => window.open('https://www.paypal.me/brianscott31/' + donateAmt, '_blank', 'noopener');
   // settings
   $('btnSettings').onclick = () => {
     $('setUser').value = settings.username;
