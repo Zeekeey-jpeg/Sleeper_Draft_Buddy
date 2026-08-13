@@ -72,7 +72,11 @@
   #rejoinChip:hover { background: rgba(240,168,50,.1); }
   #rejoinChip .x { margin-left: auto; color: var(--dim); font-size: 13px; padding: 2px 6px; flex: 0 0 auto; }
   #rejoinChip .x:hover { color: var(--text); }
-  .orDivider { color: var(--dim); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+  .lane { width: min(560px, 92vw); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+  .laneHead { font-size: 17px; font-weight: 800; letter-spacing: .08em; color: var(--text); }
+  .laneHead .laneIco { margin-right: 4px; }
+  .laneSub { color: var(--dim); font-size: 12.5px; margin-bottom: 2px; }
+  .laneSub b { color: var(--text); }
   #discoverAsk { display: flex; gap: 8px; margin-bottom: 8px; }
   #discoverAsk input { flex: 1; min-width: 0; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 9px 12px; }
   #draftList { width: 100%; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
@@ -379,28 +383,31 @@
 
   <!-- ATTACH (mock + room share this view) -->
   <section class="view" id="viewMock">
-    <div class="pulse">📡</div>
     <h2 id="attachTitle">Attach your draft</h2>
-    <div id="attachHint" style="color:var(--dim);font-size:13px;max-width:560px;text-align:center">
-      Open your draft room on <b>sleeper.com</b> — mock or league draft, it's all the same to me — and paste its link
-      (or the long draft ID) below. Teams, seats and scoring load straight from the draft; whatever Sleeper reports is what you get.
-      <br><br>Heads up: <b>phone-app lobby mocks are invisible to Sleeper's public API</b> —
-      start mocks at <b>sleeper.com &rarr; Mock Draft</b> in a browser instead.
-    </div>
     <div id="rejoinChip" style="display:none"></div>
-    <div style="display:flex;gap:8px;width:min(520px, 92vw)">
-      <input id="mockIdInput" placeholder="Paste draft link or ID… e.g. sleeper.com/draft/nfl/1234…" style="flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 12px">
-      <button class="primary" id="mockIdGo">Attach</button>
-    </div>
-    <div id="attachStatus" style="color:var(--dim);font-size:12px;min-height:18px"></div>
-    <div class="orDivider">or find your drafts</div>
-    <div id="discover" style="width:min(520px, 92vw)">
-      <div id="discoverAsk" style="display:none">
-        <input id="discUser" placeholder="Sleeper username — list your drafts">
-        <button class="ghost" id="discGo">Find</button>
+
+    <div class="lane">
+      <div class="laneHead"><span class="laneIco">🏈</span> MOCK DRAFT LINKS</div>
+      <div class="laneSub">Doing a mock? Start it at <b>sleeper.com</b> in a browser and paste the room link here. (League draft links work here too.)</div>
+      <div style="display:flex;gap:8px">
+        <input id="mockIdInput" placeholder="Paste draft link… sleeper.com/draft/nfl/1234…" style="flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 12px">
+        <button class="primary" id="mockIdGo">Attach</button>
       </div>
-      <div id="draftList"></div>
+      <div id="attachStatus" style="color:var(--dim);font-size:12px;min-height:16px"></div>
     </div>
+
+    <div class="lane">
+      <div class="laneHead"><span class="laneIco">🔴</span> LIVE DRAFT ONLY</div>
+      <div class="laneSub">Your real league draft — type your Sleeper name and I'll find it. No link needed.</div>
+      <div id="discover">
+        <div id="discoverAsk" style="display:none">
+          <input id="discUser" placeholder="Your Sleeper username">
+          <button class="ghost" id="discGo">Find</button>
+        </div>
+        <div id="draftList"></div>
+      </div>
+    </div>
+
     <button class="ghost" id="btnMockBack">← back</button>
   </section>
 
